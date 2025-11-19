@@ -48,18 +48,15 @@ function Login() {
     return data;
   },
 
-  onSuccess: (result) => {
-    // adapt to your backend: many Django setups send { user, access, refresh }
-    const user = result.user || result;
-    const access = result.access || result.accessToken || result.token;
-    const refresh = result.refresh || result.refreshToken;
+ onSuccess: (result) => {
+  console.log("LOGIN RESPONSE:", result);  // <-- ADD THIS
+  
+  const user = result.user || result;
+  const access = result.access || result.accessToken || result.token;
+  const refresh = result.refresh || result.refreshToken;
 
-    if (!access) {
-      // if backend uses cookie auth, access token may be absent — handle accordingly.
-      console.warn("No access token returned by login response");
-    }
-
-    login(user, access, refresh);
+  login(user, access, refresh);
+}
     // success UI
     toast({ title: "Login Successful", description: `Welcome back ${user.username || user.email}` });
     setLocation("/");
