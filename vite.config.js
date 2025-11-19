@@ -14,21 +14,34 @@ export default defineConfig({
       "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
+
   root: path.resolve(import.meta.dirname, "client"),
+
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
   },
+
+  // --- IMPORTANT FOR RENDER ---
+  preview: {
+    host: "0.0.0.0",
+    port: 4173,
+    allowedHosts: ["travelindia-frontend-3-adw3.onrender.com"],
+  },
+
   server: {
-    // port: 5174,
+    host: "0.0.0.0",
+    port: 5173,
     strictPort: true,
-    // Only proxy API requests in development to the local Django server.
-    // In production we rely on the absolute API_URL and do not proxy.
-    proxy: process.env.NODE_ENV === 'production' ? {} : {
-      "/api": {
-        target: "https://backend-n110.onrender.com",
-        changeOrigin: true,
-      },
-    },
+
+    proxy:
+      process.env.NODE_ENV === "production"
+        ? {}
+        : {
+            "/api": {
+              target: "https://backend-n110.onrender.com",
+              changeOrigin: true,
+            },
+          },
   },
 });
