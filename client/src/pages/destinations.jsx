@@ -1,3 +1,4 @@
+// top of file
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
@@ -8,18 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MapPin, Star, Heart, Image as ImageIcon, Search, SortAsc } from "lucide-react";
 import AmenitiesList from "@/components/hotels/AmenitiesList";
 import { cn } from "@/lib/utils";
+import { get } from "@/lib/api";        // <-- ADD THIS
+// ...
 
-function Destinations() {
-  const { data: destinations, isLoading } = useQuery({
-    queryKey: ["/api/destinations"],
-    queryFn: async () => {
-      const res = await fetch("/api/destinations/");
-      if (!res.ok) throw new Error("Failed to fetch destinations");
-      return res.json();
-    },
-    staleTime: 10_000,
-    retry: 1,
-  });
+const { data: destinations, isLoading } = useQuery({
+  queryKey: ["destinations"],
+  queryFn: () => get("/api/destinations/"), // <-- USE THE HELPER
+  staleTime: 10_000,
+  retry: 1,
+});
+
 
   // Wishlist logic
   const [wishlist, setWishlist] = useState(() => {
