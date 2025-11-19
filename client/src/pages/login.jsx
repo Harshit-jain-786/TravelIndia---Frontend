@@ -43,7 +43,7 @@ function Login() {
  const loginMutation = useMutation({
   mutationFn: async (payload) => {
     // call path exactly as backend expects (trailing slash recommended)
-    const { data } = await apiRequest("POST", "/api/users/login/", payload);
+    const { data } = await apiRequest("POST", "/api/users/login", payload);
     // data now contains backend response (user, access, refresh, etc)
     return data;
   },
