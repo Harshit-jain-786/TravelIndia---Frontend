@@ -10,16 +10,10 @@ import AmenitiesList from "@/components/hotels/AmenitiesList";
 import { cn } from "@/lib/utils";
 
 function Destinations() {
-  const { data: destinations, isLoading } = useQuery({
-    queryKey: ["/api/destinations"],
-    queryFn: async () => {
-      const res = await fetch("/api/destinations/");
-      if (!res.ok) throw new Error("Failed to fetch destinations");
-      return res.json();
-    },
-    staleTime: 10_000,
-    retry: 1,
-  });
+const { data: destinations, isLoading: destinationsLoading } = useQuery({
+  queryKey: ["destinations"],
+  queryFn: () => get("/api/destinations/"),
+});
 
   // Wishlist logic
   const [wishlist, setWishlist] = useState(() => {
