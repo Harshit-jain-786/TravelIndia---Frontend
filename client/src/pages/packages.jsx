@@ -1,14 +1,20 @@
-import { useState, useEffect } from "react";
+// client/src/pages/packages.jsx
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import PackageCard from "@/components/packages/PackageCard";
+import { Plane, Hotel, Utensils, Car, Camera, Music, Waves, ShoppingBag, Calendar } from "lucide-react";
+import { get } from "@/lib/api"; // <-- use the same API helper as other pages
 
 export default function Packages() {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const { data: packages, isLoading, error } = useQuery({
-    queryKey: ["/api/packages"],
+  const { data: packages = [], isLoading, error } = useQuery({
+    queryKey: ["packages"],
+    queryFn: () => get("/api/packages/"), // <-- required fetch
+    staleTime: 10_000,
+    retry: 1,
     onError: (err) => {
       console.error("Error fetching packages:", err);
     },
@@ -16,7 +22,7 @@ export default function Packages() {
 
   // Log any errors in data fetching
   if (error) {
-    console.error("Packages fetch error:", error);
+    console.error("Packages fetch error (component):", error);
   }
 
   const categories = [
@@ -29,7 +35,7 @@ export default function Packages() {
 
   const getInclusionIcon = (inclusion) => {
     const icons = {
-      "Flights": Plane,
+      Flights: Plane,
       "4-star accommodation": Hotel,
       "All meals": Utensils,
       "Private transport": Car,
@@ -43,8 +49,8 @@ export default function Packages() {
     return icons[inclusion] || Calendar;
   };
 
-  const filteredPackages = packages?.filter(pkg =>
-    selectedCategory === "all" || pkg.category === selectedCategory
+  const filteredPackages = (packages || []).filter((pkg) =>
+    selectedCategory === "all" ? true : pkg.category === selectedCategory
   );
 
   return (
@@ -65,10 +71,11 @@ export default function Packages() {
               <Button
                 key={category.id}
                 variant={selectedCategory === category.id ? "default" : "outline"}
-                className={`px-6 py-2 rounded-full font-medium ${selectedCategory === category.id
+                className={`px-6 py-2 rounded-full font-medium ${
+                  selectedCategory === category.id
                     ? "bg-primary text-white"
                     : "bg-white border-gray-300 hover:border-primary hover:text-primary"
-                  }`}
+                }`}
                 onClick={() => setSelectedCategory(category.id)}
                 data-testid={`filter-category-${category.id}`}
               >
@@ -102,17 +109,19 @@ export default function Packages() {
               ))}
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredPackages?.map((pkg) => (
-                <PackageCard key={pkg.id} pkg={pkg} data-testid={`card-package-${pkg.id}`} />
-              ))}
-            </div>
-          )}
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredPackages?.map((pkg) => (
+                  <PackageCard key={pkg.id} pkg={pkg} data-testid={`card-package-${pkg.id}`} getInclusionIcon={getInclusionIcon} />
+                ))}
+              </div>
 
-          {filteredPackages?.length === 0 && !isLoading && (
-            <div className="text-center py-12">
-              <p className="text-muted text-lg">No packages found for the selected category.</p>
-            </div>
+              {filteredPackages?.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted text-lg">No packages found for the selected category.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
