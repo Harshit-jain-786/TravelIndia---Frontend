@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
- "scripts": {
+"scripts": {
   "dev": "vite",
   "build": "vite build",
-  "preview": "vite preview --host 0.0.0.0 --port $PORT"
+  "start": "vite preview --host 0.0.0.0 --port 4173"
 },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
