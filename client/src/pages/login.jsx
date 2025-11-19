@@ -40,58 +40,35 @@ function Login() {
     },
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (data) => {
-      // IMPORTANT: call the exact path your backend expects.
-      // Use trailing slash if your Django URL expects it.
-      const res = await apiRequest("POST", "/api/users/login/", data);
+ const loginMutation = useMutation({
+  mutationFn: async (payload) => {
+    // call path exactly as backend expects (trailing slash recommended)
+    const { data } = await apiRequest("POST", "/api/users/login/", payload);
+    // data now contains backend response (user, access, refresh, etc)
+    return data;
+  },
 
-      // if backend returns 404 here, check the Request URL in Network tab
-      if (!res.ok) {
-        // try to get error body
-        let body = {};
-        try {
-          body = await res.json();
-        } catch (e) {
-          // ignore parse errors
-        }
-        const msg = body.detail || body.message || `Login failed (${res.status})`;
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-      }
+  onSuccess: (result) => {
+    // adapt to your backend: many Django setups send { user, access, refresh }
+    const user = result.user || result;
+    const access = result.access || result.accessToken || result.token;
+    const refresh = result.refresh || result.refreshToken;
 
-      const json = await res.json();
-      return json;
-    },
+    if (!access) {
+      // if backend uses cookie auth, access token may be absent — handle accordingly.
+      console.warn("No access token returned by login response");
+    }
 
-    onSuccess: (result) => {
-      // adapt to your backend response structure
-      const user = result.user || result;
-      const access = result.access || result.accessToken || result.token;
-      const refresh = result.refresh || result.refreshToken;
+    login(user, access, refresh);
+    // success UI
+    toast({ title: "Login Successful", description: `Welcome back ${user.username || user.email}` });
+    setLocation("/");
+  },
 
-      // call your auth context to persist tokens / user
-      login(user, access, refresh);
-
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${user.username || user.email}!`,
-      });
-
-      // notify other windows/components and go home
-      window.dispatchEvent(new Event("userChanged"));
-      setLocation("/");
-    },
-
-    onError: (err) => {
-      toast({
-        title: "Login Failed",
-        description: err.message || "Invalid credentials",
-        variant: "destructive",
-      });
-    },
-  });
+  onError: (err) => {
+    toast({ title: "Login Failed", description: err.message || "Login failed", variant: "destructive" });
+  }
+});
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
