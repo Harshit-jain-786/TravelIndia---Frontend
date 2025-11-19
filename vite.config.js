@@ -22,7 +22,7 @@ export default defineConfig({
   root: path.resolve(__dirname, "client"),
 
   build: {
-    outDir: path.resolve(__dirname, "dist"),
+    outDir: path.resolve(__dirname, "client"),
     emptyOutDir: true,
   },
 
@@ -45,7 +45,7 @@ export default defineConfig({
         : {
             // DEV proxy only. Make sure this host is the correct backend dev URL (check n1l0 vs n110).
             "/api": {
-              target: "backend-n1l0.onrender.com",
+              target: "https://backend-n1l0.onrender.com",
               changeOrigin: true,
               secure: true,
             },
