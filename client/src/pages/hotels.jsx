@@ -1,3 +1,4 @@
+// client/src/pages/hotels.jsx
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Calendar, Star, Wifi, Car, Utensils, Waves, Dumbbell, Sparkles } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import AmenitiesList from "@/components/hotels/AmenitiesList";
+import { get } from "@/lib/api"; // <-- use the same helper as home
+import { useAuth } from "@/context/AuthContext.jsx"; // optional: use for auth checks
 
 export default function Hotels() {
+  const [, setLocation] = useLocation();
+  const { user, isAuthenticated } = useAuth(); // optional: use for redirect logic if needed
+
   const [searchParams, setSearchParams] = useState({
     destination: "",
     checkin: "",
@@ -22,13 +28,17 @@ export default function Hotels() {
     amenities: [],
   });
 
-  const { data: hotels, isLoading } = useQuery({
-    queryKey: ["/api/hotels"],
+  // Use the same pattern as home: queryKey + queryFn -> get helper
+  const { data: hotels = [], isLoading } = useQuery({
+    queryKey: ["hotels"],
+    queryFn: () => get("/api/hotels/"),
+    staleTime: 10_000,
+    retry: 1,
   });
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // No-op: filtering is done below
+    // no-op here; filtering is applied client-side below
   };
 
   const getAmenityIcon = (amenity) => {
@@ -43,25 +53,44 @@ export default function Hotels() {
     return icons[amenity] || Utensils;
   };
 
-  // Filter hotels based on searchParams and filters
-  const filteredHotels = hotels?.filter((hotel) => {
-    const matchesDestination = searchParams.destination.trim() === "" || hotel.location?.toLowerCase().includes(searchParams.destination.trim().toLowerCase());
-    const matchesPrice = searchParams.price.trim() === "" || parseInt(hotel.price_per_night) <= parseInt(searchParams.price);
-    // Star rating filter: check average rating from reviews
-    const avgRating = hotel.reviews && hotel.reviews.length > 0 ? hotel.reviews.reduce((acc, r) => acc + r.rating, 0) / hotel.reviews.length : null;
+  // Filter hotels based on searchParams and filters (defensive coding)
+  const filteredHotels = (hotels || []).filter((hotel) => {
+    const matchesDestination =
+      searchParams.destination.trim() === "" ||
+      (hotel.location || "").toLowerCase().includes(searchParams.destination.trim().toLowerCase());
+
+    const matchesPrice =
+      searchParams.price.trim() === "" ||
+      (hotel.price_per_night && parseInt(hotel.price_per_night, 10) <= parseInt(searchParams.price || "0", 10));
+
+    // average rating from reviews
+    const avgRating =
+      hotel.reviews && hotel.reviews.length > 0
+        ? hotel.reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / hotel.reviews.length
+        : null;
+
     const matchesStar = !filters.starRating || (avgRating && Math.round(avgRating) === filters.starRating);
-    // Amenities
-    const amenitiesArr = Array.isArray(hotel.amenities) ? hotel.amenities : typeof hotel.amenities === 'string' ? hotel.amenities.split(',') : [];
-    const matchesAmenities = !filters.amenities.length || filters.amenities.every(a => amenitiesArr.includes(a));
+
+    const amenitiesArr = Array.isArray(hotel.amenities)
+      ? hotel.amenities
+      : typeof hotel.amenities === "string"
+      ? hotel.amenities.split(",").map((s) => s.trim())
+      : [];
+
+    const matchesAmenities = !filters.amenities.length || filters.amenities.every((a) => amenitiesArr.includes(a));
+
     return matchesDestination && matchesPrice && matchesStar && matchesAmenities;
   });
 
+  // OPTIONAL: if you *want* to force login before viewing hotels:
+  // If you prefer automatic redirect, uncomment the following block.
+  /*
   useEffect(() => {
-    // Remove automatic logout/redirect logic from hotels.jsx
-    // Only redirect if user is not logged in on initial load
-    const user = localStorage.getItem("user");
-    if (!user) window.location.href = "/login";
-  }, []);
+    if (!isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [isAuthenticated]);
+  */
 
   return (
     <div className="min-h-screen">
@@ -91,7 +120,7 @@ export default function Hotels() {
                       placeholder="Mumbai"
                       className="pl-10"
                       value={searchParams.destination}
-                      onChange={(e) => setSearchParams(prev => ({ ...prev, destination: e.target.value }))}
+                      onChange={(e) => setSearchParams((prev) => ({ ...prev, destination: e.target.value }))}
                       data-testid="input-hotel-destination"
                     />
                   </div>
@@ -109,7 +138,7 @@ export default function Hotels() {
                       type="date"
                       className="pl-10"
                       value={searchParams.checkin}
-                      onChange={(e) => setSearchParams(prev => ({ ...prev, checkin: e.target.value }))}
+                      onChange={(e) => setSearchParams((prev) => ({ ...prev, checkin: e.target.value }))}
                       data-testid="input-hotel-checkin"
                     />
                   </div>
@@ -127,7 +156,7 @@ export default function Hotels() {
                       type="date"
                       className="pl-10"
                       value={searchParams.checkout}
-                      onChange={(e) => setSearchParams(prev => ({ ...prev, checkout: e.target.value }))}
+                      onChange={(e) => setSearchParams((prev) => ({ ...prev, checkout: e.target.value }))}
                       data-testid="input-hotel-checkout"
                     />
                   </div>
@@ -145,7 +174,7 @@ export default function Hotels() {
                       min="0"
                       placeholder="e.g. 5000"
                       value={searchParams.price}
-                      onChange={(e) => setSearchParams(prev => ({ ...prev, price: e.target.value }))}
+                      onChange={(e) => setSearchParams((prev) => ({ ...prev, price: e.target.value }))}
                       data-testid="input-hotel-price"
                     />
                   </div>
@@ -167,45 +196,64 @@ export default function Hotels() {
             <div className="flex flex-wrap gap-4">
               <Button
                 variant="outline"
-                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.starRating === 5 ? 'border-primary text-primary' : ''}`}
+                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.starRating === 5 ? "border-primary text-primary" : ""}`}
                 data-testid="filter-5-star"
-                onClick={() => setFilters(prev => ({ ...prev, starRating: prev.starRating === 5 ? null : 5 }))}
+                onClick={() => setFilters((prev) => ({ ...prev, starRating: prev.starRating === 5 ? null : 5 }))}
               >
                 <Star className="mr-2 h-4 w-4" />
                 5 Star
               </Button>
+
               <Button
                 variant="outline"
-                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.starRating === 4 ? 'border-primary text-primary' : ''}`}
+                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.starRating === 4 ? "border-primary text-primary" : ""}`}
                 data-testid="filter-4-star"
-                onClick={() => setFilters(prev => ({ ...prev, starRating: prev.starRating === 4 ? null : 4 }))}
+                onClick={() => setFilters((prev) => ({ ...prev, starRating: prev.starRating === 4 ? null : 4 }))}
               >
                 <Star className="mr-2 h-4 w-4" />
                 4 Star
               </Button>
+
               <Button
                 variant="outline"
-                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes('Swimming Pool') ? 'border-primary text-primary' : ''}`}
+                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes("Swimming Pool") ? "border-primary text-primary" : ""}`}
                 data-testid="filter-pool"
-                onClick={() => setFilters(prev => ({ ...prev, amenities: prev.amenities.includes('Swimming Pool') ? prev.amenities.filter(a => a !== 'Swimming Pool') : [...prev.amenities, 'Swimming Pool'] }))}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    amenities: prev.amenities.includes("Swimming Pool") ? prev.amenities.filter((a) => a !== "Swimming Pool") : [...prev.amenities, "Swimming Pool"],
+                  }))
+                }
               >
                 <Waves className="mr-2 h-4 w-4" />
                 Swimming Pool
               </Button>
+
               <Button
                 variant="outline"
-                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes('Free WiFi') ? 'border-primary text-primary' : ''}`}
+                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes("Free WiFi") ? "border-primary text-primary" : ""}`}
                 data-testid="filter-wifi"
-                onClick={() => setFilters(prev => ({ ...prev, amenities: prev.amenities.includes('Free WiFi') ? prev.amenities.filter(a => a !== 'Free WiFi') : [...prev.amenities, 'Free WiFi'] }))}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    amenities: prev.amenities.includes("Free WiFi") ? prev.amenities.filter((a) => a !== "Free WiFi") : [...prev.amenities, "Free WiFi"],
+                  }))
+                }
               >
                 <Wifi className="mr-2 h-4 w-4" />
                 Free WiFi
               </Button>
+
               <Button
                 variant="outline"
-                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes('Restaurant') ? 'border-primary text-primary' : ''}`}
+                className={`border-gray-300 hover:border-primary hover:text-primary ${filters.amenities.includes("Restaurant") ? "border-primary text-primary" : ""}`}
                 data-testid="filter-restaurant"
-                onClick={() => setFilters(prev => ({ ...prev, amenities: prev.amenities.includes('Restaurant') ? prev.amenities.filter(a => a !== 'Restaurant') : [...prev.amenities, 'Restaurant'] }))}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    amenities: prev.amenities.includes("Restaurant") ? prev.amenities.filter((a) => a !== "Restaurant") : [...prev.amenities, "Restaurant"],
+                  }))
+                }
               >
                 <Utensils className="mr-2 h-4 w-4" />
                 Restaurant
@@ -232,30 +280,29 @@ export default function Hotels() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredHotels?.map((hotel) => (
+              {filteredHotels.map((hotel) => (
                 <Card key={hotel.id} className="overflow-hidden hover:shadow-xl transition-all duration-300" data-testid={`card-hotel-${hotel.id}`}>
-                  <img
-                    src={hotel.photo}
-                    alt={hotel.name}
-                    className="w-full h-48 object-cover"
-                  />
+                  <img src={hotel.photo} alt={hotel.name} className="w-full h-48 object-cover" />
                   <CardContent className="p-6">
                     <div className="flex items-center mb-2">
                       <div className="flex text-accent mr-2">
-                        {Array.from({ length: hotel.starRating }).map((_, i) => (
+                        {Array.from({ length: hotel.starRating || 0 }).map((_, i) => (
                           <Star key={i} className="w-4 h-4 fill-current" />
                         ))}
                       </div>
                       <span className="text-sm text-muted">
-                        Rating: {hotel.reviews && hotel.reviews.length > 0
-                          ? (hotel.reviews.reduce((acc, r) => acc + r.rating, 0) / hotel.reviews.length).toFixed(1)
-                          : "N/A"} ({hotel.reviews ? hotel.reviews.length : 0} reviews)
+                        Rating:{" "}
+                        {hotel.reviews && hotel.reviews.length > 0
+                          ? (hotel.reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / hotel.reviews.length).toFixed(1)
+                          : "N/A"}{" "}
+                        ({hotel.reviews ? hotel.reviews.length : 0} reviews)
                       </span>
                     </div>
 
                     <h3 className="text-xl font-semibold text-secondary mb-2" data-testid={`text-hotel-name-${hotel.id}`}>
                       {hotel.name}
                     </h3>
+
                     <p className="text-muted mb-4 flex items-center">
                       <MapPin className="w-4 h-4 mr-1" />
                       {hotel.location}
@@ -264,7 +311,7 @@ export default function Hotels() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <span className="text-2xl font-bold text-primary" data-testid={`text-hotel-price-${hotel.id}`}>
-                          ₹{parseInt(hotel.price_per_night).toLocaleString('en-IN')}
+                          ₹{parseInt(hotel.price_per_night || 0, 10).toLocaleString("en-IN")}
                         </span>
                         <span className="text-muted">/night</span>
                       </div>
@@ -274,7 +321,7 @@ export default function Hotels() {
                             View
                           </Button>
                         </Link>
-                        <Link href="/checkout" state={{ type: 'hotel', item: hotel }}>
+                        <Link href="/checkout" state={{ type: "hotel", item: hotel }}>
                           <Button className="bg-primary hover:bg-orange-600 text-white font-medium" data-testid={`button-book-hotel-${hotel.id}`}>
                             Book Now
                           </Button>
