@@ -11,7 +11,7 @@ export const API_URL =
   (VITE_API && String(VITE_API).trim()) ||
   (RUNTIME_API && String(RUNTIME_API).trim()) ||
   (import.meta.env.PROD
-    ? 'https://backend-n110.onrender.com'
+    ? 'https://backend-n110.onrender.com/api'
     : 'http://localhost:8000/api');
 
 // Helper to build full API paths
