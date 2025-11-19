@@ -7,15 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { MapPin, Star, Heart, Image as ImageIcon, Search, SortAsc } from "lucide-react";
 import AmenitiesList from "@/components/hotels/AmenitiesList";
-import { cn } from "@/lib/utils";
 import { get } from "@/lib/api";
 
-
 function Destinations() {
-const { data: destinations, isLoading: destinationsLoading } = useQuery({
-  queryKey: ["destinations"],
-  queryFn: () => get("/api/destinations/"),
-});
+
+  const {
+    data: destinations,
+    isLoading: destinationsLoading,
+    isError,
+    error
+  } = useQuery({
+    queryKey: ["destinations"],
+    queryFn: () => get("/api/destinations/"),
+  });
 
   // Wishlist logic
   const [wishlist, setWishlist] = useState(() => {
@@ -26,6 +30,7 @@ const { data: destinations, isLoading: destinationsLoading } = useQuery({
       return [];
     }
   });
+
   useEffect(() => {
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
   }, [wishlist]);
