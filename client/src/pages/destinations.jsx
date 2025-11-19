@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { MapPin, Star, Heart, Image as ImageIcon, Search, SortAsc } from "lucide-react";
 import AmenitiesList from "@/components/hotels/AmenitiesList";
+import { cn } from "@/lib/utils";
 import { get } from "@/lib/api";
 
 function Destinations() {
