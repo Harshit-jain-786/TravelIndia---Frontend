@@ -7,7 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 const basename = process.env.NODE_ENV === 'production' ? '/TravelIndia' : '';
 
 createRoot(document.getElementById("root")).render(
-	<BrowserRouter basename={basename}>
+	<BrowserRouter}>
 		<App />
 	</BrowserRouter>
 );
