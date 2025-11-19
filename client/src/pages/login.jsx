@@ -1,4 +1,3 @@
-// client/src/pages/Login.jsx
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext.jsx";
 import { Link, useLocation } from "wouter";
@@ -7,26 +6,29 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from "@/components/ui/card";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient"; // preferred helper
-import { API_URL } from "@/lib/config"; // fallback
+import { apiRequest } from "@/lib/queryClient";
 import { Plane, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   rememberMe: z.boolean().default(false),
 });
 
 function Login() {
   const [, setLocation] = useLocation();
-  const [showPassword, setShowPassword] = useState(false);
-  const { toast } = useToast();
   const { login } = useAuth();
+  const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -37,87 +39,50 @@ function Login() {
     },
   });
 
-  // network helper used by mutation
-  async function doLoginRequest(payload) {
-    // Use your project's apiRequest helper if available (it handles API_URL, headers, tokens etc.)
-    if (typeof apiRequest === "function") {
-      // NOTE: pass path WITHOUT the /api prefix if your apiRequest already prefixes API_URL/api
-      // We'll call "/users/login/" (trailing slash) which Django often expects.
-      const res = await apiRequest("POST", "/users/login/", payload);
+  // -------------------------------
+  // FIXED + CLEAN login request
+  // -------------------------------
+  const loginMutation = useMutation({
+    mutationFn: async (data) => {
+      // IMPORTANT: apiRequest automatically prefixes /api
+      const res = await apiRequest("POST", "/users/login/", data);
 
-      // apiRequest likely returns a fetch Response
       if (!res.ok) {
-        // attempt to extract server message
-        let errBody;
-        try { errBody = await res.json(); } catch (e) { errBody = { detail: res.statusText }; }
-        const msg = errBody?.detail || errBody?.message || JSON.stringify(errBody) || "Login failed";
-        const error = new Error(msg);
-        error.status = res.status;
-        throw error;
+        let message = "Login failed";
+        try {
+          const body = await res.json();
+          message = body.detail || body.message || JSON.stringify(body);
+        } catch {}
+        throw new Error(message);
       }
+
       return res.json();
-    }
+    },
 
-    // Fallback: direct fetch using API_URL from config
-    const endpoint = `${API_URL.replace(/\/$/, "")}/users/login/`; // ensure single slash
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(payload),
-      credentials: "include", // use this if backend uses cookie auth or you require credentials
-    });
+    onSuccess: (result) => {
+      const user = result.user;
+      const access = result.access;
+      const refresh = result.refresh;
 
-    if (!res.ok) {
-      let errBody;
-      try { errBody = await res.json(); } catch (e) { errBody = { detail: res.statusText }; }
-      const msg = errBody?.detail || errBody?.message || JSON.stringify(errBody) || "Login failed";
-      const error = new Error(msg);
-      error.status = res.status;
-      throw error;
-    }
+      login(user, access, refresh); // save tokens + user
 
-    return res.json();
-  }
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${user.username || user.email}!`,
+      });
 
- // inside Login component: replace loginMutation definition's mutationFn
-const loginMutation = useMutation({
-  mutationFn: async (data) => {
-    // apiRequest should already handle API_URL, headers, etc.
-    const res = await apiRequest("POST", "/api/users/login", data);
-    if (!res.ok) {
-      // try to parse error body
-      let errMsg = "Login failed";
-      try {
-        const errBody = await res.json();
-        errMsg = errBody.detail || errBody.message || JSON.stringify(errBody);
-      } catch {}
-      const error = new Error(errMsg);
-      error.status = res.status;
-      throw error;
-    }
-    return res.json();
-  },
-  onSuccess: (result) => {
-    const user = result.user || result;
-    const access = result.access || result.accessToken || result.token;
-    const refresh = result.refresh || result.refreshToken;
-    toast({
-      title: "Login Successful",
-      description: `Welcome back, ${user.firstName || user.first_name || user.username || user.email}!`,
-    });
-    login(user, access, refresh);
-    window.dispatchEvent(new Event("userChanged"));
-    setLocation("/");
-  },
-  onError: (error) => {
-    toast({
-      title: "Login Failed",
-      description: error.message || "Invalid credentials",
-      variant: "destructive",
-    });
-  },
-});
+      window.dispatchEvent(new Event("userChanged"));
+      setLocation("/");
+    },
 
+    onError: (err) => {
+      toast({
+        title: "Login Failed",
+        description: err.message || "Invalid credentials",
+        variant: "destructive",
+      });
+    },
+  });
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
@@ -130,15 +95,19 @@ const loginMutation = useMutation({
               <Plane className="h-8 w-8 text-primary mr-2" />
               <span className="text-2xl font-bold text-secondary">TravelIndia</span>
             </div>
-            <CardTitle className="text-2xl font-bold text-secondary" data-testid="title-welcome-back">
+            <CardTitle className="text-2xl font-bold text-secondary">
               Welcome Back
             </CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
+            <CardDescription>
+              Sign in to your account to continue
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="form-login">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                
+                {/* Email */}
                 <FormField
                   control={form.control}
                   name="email"
@@ -148,7 +117,12 @@ const loginMutation = useMutation({
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input {...field} type="email" placeholder="Enter your email" className="pl-10" data-testid="input-email" />
+                          <Input
+                            {...field}
+                            type="email"
+                            placeholder="Enter your email"
+                            className="pl-10"
+                          />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -156,6 +130,7 @@ const loginMutation = useMutation({
                   )}
                 />
 
+                {/* Password */}
                 <FormField
                   control={form.control}
                   name="password"
@@ -165,8 +140,17 @@ const loginMutation = useMutation({
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input {...field} type={showPassword ? "text" : "password"} placeholder="Enter your password" className="pl-10 pr-10" data-testid="input-password" />
-                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" data-testid="button-toggle-password">
+                          <Input
+                            {...field}
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter your password"
+                            className="pl-10 pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-3 h-4 w-4 text-muted-foreground"
+                          >
                             {showPassword ? <EyeOff /> : <Eye />}
                           </button>
                         </div>
@@ -176,31 +160,41 @@ const loginMutation = useMutation({
                   )}
                 />
 
+                {/* Remember Me */}
                 <div className="flex items-center justify-between">
                   <FormField
                     control={form.control}
                     name="rememberMe"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormItem className="flex items-center gap-2">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} data-testid="checkbox-remember-me" />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="text-sm">Remember me</FormLabel>
-                        </div>
+                        <FormLabel className="text-sm">Remember me</FormLabel>
                       </FormItem>
                     )}
                   />
-                  <Link href="/forgot-password" className="text-sm text-primary hover:text-orange-600 transition-colors">Forgot password?</Link>
+
+                  <Link href="/forgot-password" className="text-sm text-primary hover:text-orange-600">
+                    Forgot password?
+                  </Link>
                 </div>
 
-                <Button type="submit" className="w-full bg-primary hover:bg-orange-600 text-white font-semibold" disabled={loginMutation.isLoading} data-testid="button-sign-in">
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-orange-600"
+                  disabled={loginMutation.isLoading}
+                >
                   {loginMutation.isLoading ? "Signing In..." : "Sign In"}
                 </Button>
               </form>
             </Form>
 
-            {/* rest of UI (social buttons + signup link) unchanged */}
+            {/* Social Login Section */}
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -212,17 +206,20 @@ const loginMutation = useMutation({
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3">
-                <Button variant="outline" className="w-full" data-testid="button-google-login">Google</Button>
-                <Button variant="outline" className="w-full" data-testid="button-facebook-login">Facebook</Button>
+                <Button variant="outline" className="w-full">Google</Button>
+                <Button variant="outline" className="w-full">Facebook</Button>
               </div>
             </div>
 
             <div className="text-center mt-6">
               <p className="text-muted">
-                Don't have an account?{" "}
-                <Link href="/signup" className="text-primary hover:text-orange-600 transition-colors font-medium">Sign up</Link>
+                Don’t have an account?{" "}
+                <Link href="/signup" className="text-primary hover:text-orange-600 font-medium">
+                  Sign up
+                </Link>
               </p>
             </div>
+
           </CardContent>
         </Card>
       </div>
@@ -231,4 +228,3 @@ const loginMutation = useMutation({
 }
 
 export default Login;
-
