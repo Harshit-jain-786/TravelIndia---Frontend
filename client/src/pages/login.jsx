@@ -79,40 +79,45 @@ function Login() {
     return res.json();
   }
 
-  const loginMutation = useMutation({
-    mutationFn: async (data) => {
-      // remove rememberMe from payload if backend doesn't expect it
-      const { rememberMe, ...payload } = data;
-      return doLoginRequest(payload);
-    },
-    onSuccess: (result) => {
-      // result shape may vary: { user, access, refresh } or { accessToken, refreshToken, user }
-      const user = result.user || result.data || result;
-      const access = result.access || result.accessToken || result.token || result.access_token;
-      const refresh = result.refresh || result.refreshToken || result.refresh_token;
+ // inside Login component: replace loginMutation definition's mutationFn
+const loginMutation = useMutation({
+  mutationFn: async (data) => {
+    // apiRequest should already handle API_URL, headers, etc.
+    const res = await apiRequest("POST", "/api/users/login", data);
+    if (!res.ok) {
+      // try to parse error body
+      let errMsg = "Login failed";
+      try {
+        const errBody = await res.json();
+        errMsg = errBody.detail || errBody.message || JSON.stringify(errBody);
+      } catch {}
+      const error = new Error(errMsg);
+      error.status = res.status;
+      throw error;
+    }
+    return res.json();
+  },
+  onSuccess: (result) => {
+    const user = result.user || result;
+    const access = result.access || result.accessToken || result.token;
+    const refresh = result.refresh || result.refreshToken;
+    toast({
+      title: "Login Successful",
+      description: `Welcome back, ${user.firstName || user.first_name || user.username || user.email}!`,
+    });
+    login(user, access, refresh);
+    window.dispatchEvent(new Event("userChanged"));
+    setLocation("/");
+  },
+  onError: (error) => {
+    toast({
+      title: "Login Failed",
+      description: error.message || "Invalid credentials",
+      variant: "destructive",
+    });
+  },
+});
 
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${user?.firstName || user?.first_name || user?.username || user?.email || ""}!`,
-      });
-
-      // Save in context/localStorage
-      login(user, access, refresh);
-
-      // notify other tabs if you use that pattern
-      window.dispatchEvent(new Event("userChanged"));
-
-      // redirect
-      setLocation("/");
-    },
-    onError: (error) => {
-      toast({
-        title: "Login Failed",
-        description: error?.message || "Invalid credentials",
-        variant: "destructive",
-      });
-    },
-  });
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
