@@ -43,46 +43,81 @@ function Login() {
   // FIXED + CLEAN login request
   // -------------------------------
   const loginMutation = useMutation({
-    mutationFn: async (data) => {
-      // IMPORTANT: apiRequest automatically prefixes /api
-      const res = await apiRequest("POST", "/users/login/", data);
+  mutationFn: async (data) => {
+    const res = await apiRequest("POST", "/users/login/", data);
 
-      if (!res.ok) {
-        let message = "Login failed";
-        try {
-          const body = await res.json();
-          message = body.detail || body.message || JSON.stringify(body);
-        } catch {}
-        throw new Error(message);
-      }
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.detail || "Login failed");
+    }
 
-      return res.json();
-    },
+    return res.json();
+  },
+  onSuccess: (result) => {
+    const user = result.user;
+    const access = result.access;
+    const refresh = result.refresh;
 
-    onSuccess: (result) => {
-      const user = result.user;
-      const access = result.access;
-      const refresh = result.refresh;
+    login(user, access, refresh); // save tokens + user
 
-      login(user, access, refresh); // save tokens + user
+    toast({
+      title: "Login Successful",
+      description: `Welcome back, ${user.username || user.email}!`,
+    });
 
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${user.username || user.email}!`,
-      });
-
-      window.dispatchEvent(new Event("userChanged"));
-      setLocation("/");
-    },
-
-    onError: (err) => {
+    login(user, access, result.refresh);
+    window.location.href = "/";
+  },
+      onError: (err) => {
       toast({
         title: "Login Failed",
         description: err.message || "Invalid credentials",
         variant: "destructive",
       });
     },
-  });
+});
+
+  // const loginMutation = useMutation({
+  //   mutationFn: async (data) => {
+  //     // IMPORTANT: apiRequest automatically prefixes /api
+  //     const res = await apiRequest("POST", "/users/login/", data);
+
+  //     if (!res.ok) {
+  //       let message = "Login failed";
+  //       try {
+  //         const body = await res.json();
+  //         message = body.detail || body.message || JSON.stringify(body);
+  //       } catch {}
+  //       throw new Error(message);
+  //     }
+
+  //     return res.json();
+  //   },
+
+  //   onSuccess: (result) => {
+  //     const user = result.user;
+  //     const access = result.access;
+  //     const refresh = result.refresh;
+
+  //     login(user, access, refresh); // save tokens + user
+
+  //     toast({
+  //       title: "Login Successful",
+  //       description: `Welcome back, ${user.username || user.email}!`,
+  //     });
+
+  //     window.dispatchEvent(new Event("userChanged"));
+  //     setLocation("/");
+  //   },
+
+  //   onError: (err) => {
+  //     toast({
+  //       title: "Login Failed",
+  //       description: err.message || "Invalid credentials",
+  //       variant: "destructive",
+  //     });
+  //   },
+  // });
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
