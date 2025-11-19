@@ -31,7 +31,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 4173,
     // allow the exact Render hostname(s) — paste the real hostnames your Render gives you
-    allowedHosts: ["https://travelindia-frontend-3-adw3.onrender.com"],
+    allowedHosts: ["travelindia-frontend-3-adw3.onrender.com"],
   },
 
   // Dev server (local)
@@ -45,7 +45,7 @@ export default defineConfig({
         : {
             // DEV proxy only. Make sure this host is the correct backend dev URL (check n1l0 vs n110).
             "/api": {
-              target: "https://backend-n1l0.onrender.com",
+              target: "backend-n1l0.onrender.com",
               changeOrigin: true,
               secure: true,
             },
