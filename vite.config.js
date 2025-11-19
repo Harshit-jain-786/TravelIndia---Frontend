@@ -45,7 +45,7 @@ export default defineConfig({
         : {
             // DEV proxy only. Make sure this host is the correct backend dev URL (check n1l0 vs n110).
             "/api": {
-              target: "https://backend-n1l0.onrender.com",
+              target: "https://backend-n110.onrender.com",
               changeOrigin: true,
               secure: true,
             },
