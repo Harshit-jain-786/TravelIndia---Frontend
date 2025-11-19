@@ -44,7 +44,7 @@ function Login() {
   // -------------------------------
   const loginMutation = useMutation({
   mutationFn: async (data) => {
-    const res = await apiRequest("POST", "/users/login/", data);
+    const res = await apiRequest("POST", "/api/users/login/", data);
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
