@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/apiClient"; // <-- our helper
+import { apiRequest } from "@/lib/queryClient"; // <-- our helper
 import { Plane, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
