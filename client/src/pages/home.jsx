@@ -4,20 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plane, Hotel, Package, ArrowRight, Star } from "lucide-react";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
-
+import { get } from "@/lib/api";
 
 export default function Home() {
-  const { data: featuredPackages, isLoading: packagesLoading } = useQuery({
-    queryKey: ["/api/packages", { featured: "true" }],
-  });
 
-  const { data: destinations, isLoading: destinationsLoading } = useQuery({
-    queryKey: ["/api/destinations"],
-  });
+// Featured packages
+const { data: featuredPackages, isLoading: packagesLoading } = useQuery({
+  queryKey: ["featured-packages"],
+  queryFn: () => get("/api/packages/?featured=true"),
+});
 
-  const { data: hotels, isLoading: hotelsLoading } = useQuery({
-    queryKey: ["/api/hotels"],
-  });
+// Destinations
+const { data: destinations, isLoading: destinationsLoading } = useQuery({
+  queryKey: ["destinations"],
+  queryFn: () => get("/api/destinations/"),
+});
+
+// Hotels
+const { data: hotels, isLoading: hotelsLoading } = useQuery({
+  queryKey: ["hotels"],
+  queryFn: () => get("/api/hotels/"),
+});
 
   return (
     <>
