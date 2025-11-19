@@ -8,18 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MapPin, Star, Heart, Image as ImageIcon, Search, SortAsc } from "lucide-react";
 import AmenitiesList from "@/components/hotels/AmenitiesList";
 import { cn } from "@/lib/utils";
-import { get } from "@/lib/api";
 
 function Destinations() {
-
-  const {
-    data: destinations,
-    isLoading: destinationsLoading,
-    isError,
-    error
-  } = useQuery({
-    queryKey: ["destinations"],
-    queryFn: () => get("/api/destinations/"),
+  const { data: destinations, isLoading } = useQuery({
+    queryKey: ["/api/destinations"],
+    queryFn: async () => {
+      const res = await fetch("/api/destinations/");
+      if (!res.ok) throw new Error("Failed to fetch destinations");
+      return res.json();
+    },
+    staleTime: 10_000,
+    retry: 1,
   });
 
   // Wishlist logic
@@ -31,7 +30,6 @@ function Destinations() {
       return [];
     }
   });
-
   useEffect(() => {
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
   }, [wishlist]);
