@@ -1,4 +1,4 @@
-// client/src/pages/Login.jsx
+// client/src/pages/login.jsx
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext.jsx";
 import { Link, useLocation } from "wouter";
@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient"; // <-- our helper
+import { apiRequest } from "@/lib/queryClient"; // ensure this file exists and exports apiRequest
 import { Plane, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
@@ -40,32 +40,83 @@ function Login() {
     },
   });
 
- const loginMutation = useMutation({
-  mutationFn: async (payload) => {
-    // call path exactly as backend expects (trailing slash recommended)
-    const { data } = await apiRequest("POST", "/api/users/login", payload);
-    // data now contains backend response (user, access, refresh, etc)
-    return data;
-  },
+  const loginMutation = useMutation({
+    mutationFn: async (data) => {
+      // call helper which builds full backend URL
+      // NOTE: apiRequest should return a fetch Response or throw
+      const res = await apiRequest("POST", "/api/users/login/", data);
 
- onSuccess: (result) => {
-  console.log("LOGIN RESPONSE:", result);  // <-- ADD THIS
-  
-  const user = result.user || result;
-  const access = result.access || result.accessToken || result.token;
-  const refresh = result.refresh || result.refreshToken;
+      // if fetch returned a Response that is not ok, throw useful error
+      if (!res.ok) {
+        let body = {};
+        try {
+          body = await res.json();
+        } catch (e) {
+          /* ignore parse error */
+        }
+        const msg = body.detail || body.message || `Login failed (${res.status})`;
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
 
-  login(user, access, refresh);
-}
-    // success UI
-    toast({ title: "Login Successful", description: `Welcome back ${user.username || user.email}` });
-    setLocation("/");
-  },
+      // success: parse json
+      return res.json();
+    },
 
-  onError: (err) => {
-    toast({ title: "Login Failed", description: err.message || "Login failed", variant: "destructive" });
-  }
-});
+    onSuccess: (result) => {
+      // IMPORTANT: support multiple backend response shapes
+      // Example shapes:
+      // 1) { access, refresh, user: { ... } }
+      // 2) { token / accessToken, refreshToken, username, ... }
+      // We'll try to be flexible.
+
+      // debug line you can enable temporarily:
+      // console.log("LOGIN RESPONSE:", result);
+
+      const user = result.user || result.user_info || {
+        id: result.id,
+        username: result.username,
+        email: result.email,
+      };
+
+      const access = result.access || result.accessToken || result.token || result.authToken;
+      const refresh = result.refresh || result.refreshToken;
+
+      // guard
+      if (!user || !access) {
+        // If backend returns only tokens and no user, fetch profile next (optional)
+        // For now show error so you notice mismatched response shape.
+        toast({
+          title: "Login failed",
+          description: "Unexpected login response from server. Check the network response in DevTools.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // persist user and tokens
+      login(user, access, refresh);
+
+      // success UI
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${user.username || user.email || "user"}!`,
+      });
+
+      // notify other listeners and navigate home
+      window.dispatchEvent(new Event("userChanged"));
+      setLocation("/");
+    },
+
+    onError: (err) => {
+      toast({
+        title: "Login Failed",
+        description: err?.message || "Invalid credentials",
+        variant: "destructive",
+      });
+    },
+  });
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
@@ -78,12 +129,8 @@ function Login() {
               <Plane className="h-8 w-8 text-primary mr-2" />
               <span className="text-2xl font-bold text-secondary">TravelIndia</span>
             </div>
-            <CardTitle className="text-2xl font-bold text-secondary">
-              Welcome Back
-            </CardTitle>
-            <CardDescription>
-              Sign in to your account to continue
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-secondary">Welcome Back</CardTitle>
+            <CardDescription>Sign in to your account to continue</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -98,12 +145,7 @@ function Login() {
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            {...field}
-                            type="email"
-                            placeholder="Enter your email"
-                            className="pl-10"
-                          />
+                          <Input {...field} type="email" placeholder="Enter your email" className="pl-10" />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -120,17 +162,8 @@ function Login() {
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            {...field}
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            className="pl-10 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-3 h-4 w-4 text-muted-foreground"
-                          >
+                          <Input {...field} type={showPassword ? "text" : "password"} placeholder="Enter your password" className="pl-10 pr-10" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 h-4 w-4 text-muted-foreground">
                             {showPassword ? <EyeOff /> : <Eye />}
                           </button>
                         </div>
@@ -147,30 +180,22 @@ function Login() {
                     render={({ field }) => (
                       <FormItem className="flex items-center gap-2">
                         <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                         <FormLabel className="text-sm">Remember me</FormLabel>
                       </FormItem>
                     )}
                   />
 
-                  <Link href="/forgot-password" className="text-sm text-primary hover:text-orange-600">
-                    Forgot password?
-                  </Link>
+                  <Link href="/forgot-password" className="text-sm text-primary hover:text-orange-600">Forgot password?</Link>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-orange-600"
-                  disabled={loginMutation.isLoading}
-                >
+                <Button type="submit" className="w-full bg-primary hover:bg-orange-600" disabled={loginMutation.isLoading}>
                   {loginMutation.isLoading ? "Signing In..." : "Sign In"}
                 </Button>
               </form>
             </Form>
+
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -190,12 +215,9 @@ function Login() {
             <div className="text-center mt-6">
               <p className="text-muted">
                 Don’t have an account?{" "}
-                <Link href="/signup" className="text-primary hover:text-orange-600 font-medium">
-                  Sign up
-                </Link>
+                <Link href="/signup" className="text-primary hover:text-orange-600 font-medium">Sign up</Link>
               </p>
             </div>
-
           </CardContent>
         </Card>
       </div>
