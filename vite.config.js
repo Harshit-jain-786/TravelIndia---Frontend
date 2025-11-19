@@ -26,7 +26,7 @@ export default defineConfig({
     // In production we rely on the absolute API_URL and do not proxy.
     proxy: process.env.NODE_ENV === 'production' ? {} : {
       "/api": {
-        target: "https://backend-8-4eax.onrender.com",
+        target: "https://backend-n110.onrender.com",
         changeOrigin: true,
       },
     },
