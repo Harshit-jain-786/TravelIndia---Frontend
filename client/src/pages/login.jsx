@@ -1,3 +1,4 @@
+// client/src/pages/Login.jsx
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext.jsx";
 import { Link, useLocation } from "wouter";
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/apiClient"; // <-- our helper
 import { Plane, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
@@ -39,85 +40,58 @@ function Login() {
     },
   });
 
-  // -------------------------------
-  // FIXED + CLEAN login request
-  // -------------------------------
   const loginMutation = useMutation({
-  mutationFn: async (data) => {
-    const res = await apiRequest("POST", "/api/users/login/", data);
+    mutationFn: async (data) => {
+      // IMPORTANT: call the exact path your backend expects.
+      // Use trailing slash if your Django URL expects it.
+      const res = await apiRequest("POST", "/api/users/login/", data);
 
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.detail || "Login failed");
-    }
+      // if backend returns 404 here, check the Request URL in Network tab
+      if (!res.ok) {
+        // try to get error body
+        let body = {};
+        try {
+          body = await res.json();
+        } catch (e) {
+          // ignore parse errors
+        }
+        const msg = body.detail || body.message || `Login failed (${res.status})`;
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
 
-    return res.json();
-  },
-  onSuccess: (result) => {
-    const user = result.user;
-    const access = result.access;
-    const refresh = result.refresh;
+      const json = await res.json();
+      return json;
+    },
 
-    login(user, access, refresh); // save tokens + user
+    onSuccess: (result) => {
+      // adapt to your backend response structure
+      const user = result.user || result;
+      const access = result.access || result.accessToken || result.token;
+      const refresh = result.refresh || result.refreshToken;
 
-    toast({
-      title: "Login Successful",
-      description: `Welcome back, ${user.username || user.email}!`,
-    });
+      // call your auth context to persist tokens / user
+      login(user, access, refresh);
 
-    login(user, access, result.refresh);
-    window.location.href = "/";
-  },
-      onError: (err) => {
+      toast({
+        title: "Login Successful",
+        description: `Welcome back, ${user.username || user.email}!`,
+      });
+
+      // notify other windows/components and go home
+      window.dispatchEvent(new Event("userChanged"));
+      setLocation("/");
+    },
+
+    onError: (err) => {
       toast({
         title: "Login Failed",
         description: err.message || "Invalid credentials",
         variant: "destructive",
       });
     },
-});
-
-  // const loginMutation = useMutation({
-  //   mutationFn: async (data) => {
-  //     // IMPORTANT: apiRequest automatically prefixes /api
-  //     const res = await apiRequest("POST", "/users/login/", data);
-
-  //     if (!res.ok) {
-  //       let message = "Login failed";
-  //       try {
-  //         const body = await res.json();
-  //         message = body.detail || body.message || JSON.stringify(body);
-  //       } catch {}
-  //       throw new Error(message);
-  //     }
-
-  //     return res.json();
-  //   },
-
-  //   onSuccess: (result) => {
-  //     const user = result.user;
-  //     const access = result.access;
-  //     const refresh = result.refresh;
-
-  //     login(user, access, refresh); // save tokens + user
-
-  //     toast({
-  //       title: "Login Successful",
-  //       description: `Welcome back, ${user.username || user.email}!`,
-  //     });
-
-  //     window.dispatchEvent(new Event("userChanged"));
-  //     setLocation("/");
-  //   },
-
-  //   onError: (err) => {
-  //     toast({
-  //       title: "Login Failed",
-  //       description: err.message || "Invalid credentials",
-  //       variant: "destructive",
-  //     });
-  //   },
-  // });
+  });
 
   const onSubmit = (data) => loginMutation.mutate(data);
 
@@ -141,8 +115,6 @@ function Login() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                
-                {/* Email */}
                 <FormField
                   control={form.control}
                   name="email"
@@ -165,7 +137,6 @@ function Login() {
                   )}
                 />
 
-                {/* Password */}
                 <FormField
                   control={form.control}
                   name="password"
@@ -195,7 +166,6 @@ function Login() {
                   )}
                 />
 
-                {/* Remember Me */}
                 <div className="flex items-center justify-between">
                   <FormField
                     control={form.control}
@@ -218,7 +188,6 @@ function Login() {
                   </Link>
                 </div>
 
-                {/* Submit */}
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-orange-600"
@@ -228,8 +197,6 @@ function Login() {
                 </Button>
               </form>
             </Form>
-
-            {/* Social Login Section */}
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
