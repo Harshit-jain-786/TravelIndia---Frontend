@@ -1,31 +1,47 @@
+// client/src/pages/Home.jsx
+import React from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/axiosClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plane, Hotel, Package, ArrowRight, Star } from "lucide-react";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
 
 export default function Home() {
+  // Featured packages
   const { data: featuredPackages, isLoading: packagesLoading } = useQuery({
-    queryKey: ["/api/packages", { featured: "true" }],
+    queryKey: ['packages', { featured: true }],
+    queryFn: async () => {
+      const res = await api.get('/api/packages/', { params: { featured: true } });
+      return res.data;
+    },
   });
 
+  // Destinations
   const { data: destinations, isLoading: destinationsLoading } = useQuery({
-    queryKey: ["/api/destinations"],
+    queryKey: ['destinations'],
+    queryFn: async () => {
+      const res = await api.get('/api/destinations/');
+      return res.data;
+    },
   });
 
+  // Hotels
   const { data: hotels, isLoading: hotelsLoading } = useQuery({
-    queryKey: ["/api/hotels"],
+    queryKey: ['hotels'],
+    queryFn: async () => {
+      const res = await api.get('/api/hotels/');
+      return res.data;
+    },
   });
 
   return (
     <>
       <div className="w-full flex items-center justify-center border-t border-gray-100 bg-white py-10 ">
-        {/* Search bar only on home page, below navbar */}
         <GlobalSearchBar />
       </div>
       <div className="min-h-screen">
-        {/* Hero Section */}
         <section
           className="relative h-screen flex items-center justify-center bg-cover bg-center"
           style={{
@@ -52,7 +68,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Quick Search Section */}
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-center text-secondary mb-12" data-testid="section-title-plan-trip">
@@ -101,12 +116,12 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Featured Destinations */}
         <section className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-center text-secondary mb-12" data-testid="section-title-popular-destinations">
               Popular Destinations
             </h2>
+
             {destinationsLoading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -127,11 +142,7 @@ export default function Home() {
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {destinations?.slice(0, 4).map((destination) => (
                   <Card key={destination.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1" data-testid={`card-destination-${destination.id}`}>
-                    <img
-                      src={destination.image}
-                      alt={destination.name}
-                      className="w-full h-48 object-cover"
-                    />
+                    <img src={destination.image} alt={destination.name} className="w-full h-48 object-cover" />
                     <CardContent className="p-6">
                       <h3 className="text-xl font-semibold text-secondary mb-2">{destination.name}</h3>
                       <p className="text-muted mb-4">{destination.description}</p>
@@ -148,6 +159,7 @@ export default function Home() {
                 ))}
               </div>
             )}
+
             <div className="flex justify-center mt-8">
               <Link href="/destinations">
                 <Button className="bg-primary hover:bg-orange-600 text-white font-semibold px-8">
@@ -158,12 +170,12 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Featured Packages */}
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-center text-secondary mb-12" data-testid="section-title-featured-packages">
               Featured Packages
             </h2>
+
             {packagesLoading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -184,16 +196,10 @@ export default function Home() {
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {featuredPackages?.slice(0, 4).map((pkg) => (
                   <Card key={pkg.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1" data-testid={`card-featured-package-${pkg.id}`}>
-                    <img
-                      src={pkg.photo}
-                      alt={pkg.name}
-                      className="w-full h-48 object-cover"
-                    />
+                    <img src={pkg.photo} alt={pkg.name} className="w-full h-48 object-cover" />
                     <CardContent className="p-6">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-accent text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {pkg.duration} Days
-                        </span>
+                        <span className="bg-accent text-white px-3 py-1 rounded-full text-sm font-medium">{pkg.duration} Days</span>
                         <div className="flex items-center text-accent">
                           <Star className="w-4 h-4 mr-1 fill-current" />
                           <span className="font-medium">{pkg.rating}</span>
@@ -214,6 +220,7 @@ export default function Home() {
                 ))}
               </div>
             )}
+
             <div className="flex justify-center mt-8">
               <Link href="/packages">
                 <Button className="bg-primary hover:bg-orange-600 text-white font-semibold px-8">
@@ -224,12 +231,12 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Featured Hotels */}
         <section className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-center text-secondary mb-12" data-testid="section-title-featured-hotels">
               Featured Hotels
             </h2>
+
             {hotelsLoading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -250,11 +257,7 @@ export default function Home() {
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {hotels?.slice(0, 4).map((hotel) => (
                   <Card key={hotel.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1" data-testid={`card-hotel-${hotel.id}`}>
-                    <img
-                      src={hotel.photo}
-                      alt={hotel.name}
-                      className="w-full h-48 object-cover"
-                    />
+                    <img src={hotel.photo} alt={hotel.name} className="w-full h-48 object-cover" />
                     <CardContent className="p-6">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex items-center text-accent">
@@ -277,6 +280,7 @@ export default function Home() {
                 ))}
               </div>
             )}
+
             <div className="flex justify-center mt-8">
               <Link href="/hotels">
                 <Button className="bg-primary hover:bg-orange-600 text-white font-semibold px-8">
