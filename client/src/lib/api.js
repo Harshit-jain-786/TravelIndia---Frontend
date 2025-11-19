@@ -1,21 +1,24 @@
-// Central API URL configuration
-// Priority (highest -> lowest):
-// 1. Vite env var `VITE_API_URL` (set at build time)
-// 2. runtime override `window.__API_URL__` (optional, injected by host)
-// 3. import.meta.env.PROD -> production backend URL
-// 4. fallback to localhost for development
-const VITE_API = import.meta.env.VITE_API_URL;
-const RUNTIME_API = typeof window !== 'undefined' ? window.__API_URL__ : undefined;
+import { API_URL } from "./config";
 
-export const API_URL =
-  (VITE_API && String(VITE_API).trim()) ||
-  (RUNTIME_API && String(RUNTIME_API).trim()) ||
-  (import.meta.env.PROD
-    ? 'https://backend-n110.onrender.com'
-    : 'http://localhost:8000/api');
-
-// Helper to build full API paths
+// build full URL
 export function apiPath(path) {
-  // ensure no double slashes
-  return `${API_URL}${path.startsWith('/') ? path : '/' + path}`;
+  if (!path) return API_URL;
+  return `${API_URL}${path.startsWith("/") ? path : "/" + path}`;
+}
+
+// fetch wrapper
+export async function get(path) {
+  const res = await fetch(apiPath(path));
+  if (!res.ok) throw new Error("Failed: " + res.status);
+  return res.json();
+}
+
+export async function post(path, body) {
+  const res = await fetch(apiPath(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Failed: " + res.status);
+  return res.json();
 }
