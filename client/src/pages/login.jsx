@@ -94,7 +94,11 @@ onSuccess: (result) => {
     },
   });
 
-  const onSubmit = (data) => loginMutation.mutate(data);
+ // login onSubmit
+const onSubmit = (data) => {
+  // data has { email, password, rememberMe }
+  loginMutation.mutate({ email: data.email, password: data.password });
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-orange-50 pt-16">
