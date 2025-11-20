@@ -41,74 +41,50 @@ function Login() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (data) => {
-      // call helper which builds full backend URL
-      // NOTE: apiRequest should return a fetch Response or throw
-      const res = await apiRequest("POST", "/api/users/login/", data);
+   // inside loginMutation in client/src/pages/login.jsx
+mutationFn: async (payload) => {
+  // apiRequest returns { status, ok, data }
+  const res = await apiRequest("POST", "/api/users/login/", payload);
 
-      // if fetch returned a Response that is not ok, throw useful error
-      if (!res.ok) {
-        let body = {};
-        try {
-          body = await res.json();
-        } catch (e) {
-          /* ignore parse error */
-        }
-        const msg = body.detail || body.message || `Login failed (${res.status})`;
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-      }
+  // handle error using res.ok and res.data
+  if (!res.ok) {
+    // backend may return { error: "..."} or { detail: "..." }
+    const body = res.data || {};
+    const msg = body.detail || body.error || body.message || `Login failed (${res.status})`;
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
 
-      // success: parse json
-      return res.json();
-    },
+  // success -> return parsed JSON
+  return res.data;
+},
 
-    onSuccess: (result) => {
-      // IMPORTANT: support multiple backend response shapes
-      // Example shapes:
-      // 1) { access, refresh, user: { ... } }
-      // 2) { token / accessToken, refreshToken, username, ... }
-      // We'll try to be flexible.
+onSuccess: (result) => {
+  // backend possible shapes: { access, refresh, user } or { accessToken, refreshToken, user }
+  const user = result.user || result.user_info || {
+    id: result.id,
+    username: result.username,
+    email: result.email,
+  };
 
-      // debug line you can enable temporarily:
-      // console.log("LOGIN RESPONSE:", result);
+  const access = result.access || result.accessToken || result.token || result.authToken;
+  const refresh = result.refresh || result.refreshToken;
 
-      const user = result.user || result.user_info || {
-        id: result.id,
-        username: result.username,
-        email: result.email,
-      };
+  if (!user || !access) {
+    toast({
+      title: "Login failed",
+      description: "Unexpected login response from server. Inspect the network response.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-      const access = result.access || result.accessToken || result.token || result.authToken;
-      const refresh = result.refresh || result.refreshToken;
-
-      // guard
-      if (!user || !access) {
-        // If backend returns only tokens and no user, fetch profile next (optional)
-        // For now show error so you notice mismatched response shape.
-        toast({
-          title: "Login failed",
-          description: "Unexpected login response from server. Check the network response in DevTools.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // persist user and tokens
-      login(user, access, refresh);
-
-      // success UI
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${user.username || user.email || "user"}!`,
-      });
-
-      // notify other listeners and navigate home
-      window.dispatchEvent(new Event("userChanged"));
-      setLocation("/");
-    },
-
+  login(user, access, refresh); // AuthContext helper saves to localStorage
+  toast({ title: "Login Successful", description: `Welcome back, ${user.username || user.email}!` });
+  window.dispatchEvent(new Event("userChanged"));
+  setLocation("/");
+},
     onError: (err) => {
       toast({
         title: "Login Failed",
